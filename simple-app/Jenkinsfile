@@ -11,9 +11,6 @@ pipeline {
             steps {
                 echo '🔹 Mengambil source code dari GitHub...'
                 checkout scm
-                dir('simple-app') {
-                    bat 'echo 📂 Berpindah ke folder simple-app...'
-                }
             }
         }
 
@@ -37,7 +34,7 @@ pipeline {
                         docker login -u "%DOCKER_USER%" -p "%DOCKER_PASS%"
                         if %errorlevel% neq 0 exit /b %errorlevel%
                         
-                        echo ✅ Login berhasil, mulai push image...
+                        echo ✅ Login berhasil, push image...
                         docker push %IMAGE_NAME%:%BUILD_NUMBER%
                         if %errorlevel% neq 0 exit /b %errorlevel%
                         
