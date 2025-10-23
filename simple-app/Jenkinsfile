@@ -2,44 +2,49 @@ pipeline {
   agent any
 
   environment {
-    // Nama image yang akan dibuild dan dikirim ke Docker Hub
+    // Nama image Docker yang akan dibangun dan di-push ke Docker Hub
     IMAGE_NAME = 'yourdockerusername/simple-app'
-    // ID credential Docker Hub yang kamu buat di Jenkins
+    // ID credential Docker Hub di Jenkins
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
   }
 
   stages {
     stage('Checkout') {
       steps {
-        echo 'Mengambil source code dari GitHub...'
+        echo '🔹 Mengambil source code dari GitHub...'
         checkout scm
       }
     }
 
     stage('Build') {
       steps {
-        bat 'echo "Build di Windows dimulai..."'
+        bat 'echo "🏗️  Build di Windows dimulai..."'
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        echo 'Membangun Docker image dari folder simple-app...'
-        // Karena Dockerfile ada di dalam folder simple-app
+        echo '🐳 Membangun Docker image dari folder simple-app...'
+        // Dockerfile berada di folder simple-app
         bat 'docker build -f simple-app/Dockerfile -t %IMAGE_NAME%:%BUILD_NUMBER% simple-app'
       }
     }
 
     stage('Push Docker Image') {
       steps {
-        echo 'Login ke Docker Hub dan push image...'
+        echo '🚀 Login ke Docker Hub dan push image...'
         withCredentials([usernamePassword(
           credentialsId: REGISTRY_CREDENTIALS,
           usernameVariable: 'USER',
           passwordVariable: 'PASS'
         )]) {
-          bat 'docker login -u %USER% -p %PASS%'
+          // Login ke Docker Hub menggunakan username & token
+          bat 'docker login --username %USER% --password %PASS%'
+          
+          // Push image dengan tag build number
           bat 'docker push %IMAGE_NAME%:%BUILD_NUMBER%'
+          
+          // Tambahkan tag latest dan push juga
           bat 'docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest'
           bat 'docker push %IMAGE_NAME%:latest'
         }
@@ -49,7 +54,13 @@ pipeline {
 
   post {
     always {
-      bat 'echo "Pipeline selesai dijalankan."'
+      bat 'echo "✅ Pipeline selesai dijalankan."'
+    }
+    success {
+      bat 'echo "🎉 Build dan Push Docker Image berhasil!"'
+    }
+    failure {
+      bat 'echo "❌ Build gagal, periksa log untuk detail error."'
     }
   }
 }
