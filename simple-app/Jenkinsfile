@@ -2,47 +2,37 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'dzikri2811/simple-app'
-        REGISTRY_CREDENTIALS = 'dockerhub-credentials'
+        DOCKER_IMAGE = "dzikri2811/simple-app:latest"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                echo '🔹 Mengambil source code dari GitHub...'
+                echo "🔹 Mengambil source code dari GitHub..."
                 checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('simple-app') {
-                    echo '🐳 Membangun Docker image...'
-                    bat 'docker build -t %IMAGE_NAME%:%BUILD_NUMBER% .'
-                }
+                echo "🐳 Membangun Docker image..."
+                bat """
+                docker build -f simple-app/Dockerfile -t %DOCKER_IMAGE% simple-app
+                """
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                dir('simple-app') {
-                    echo '🚀 Login ke Docker Hub dan push image...'
-                    withCredentials([usernamePassword(credentialsId: REGISTRY_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        bat '''
-                        echo Logging in to Docker Hub...
-                        docker logout
-                        docker login -u "%DOCKER_USER%" -p "%DOCKER_PASS%"
-                        if %errorlevel% neq 0 exit /b %errorlevel%
-                        
-                        echo ✅ Login berhasil, push image...
-                        docker push %IMAGE_NAME%:%BUILD_NUMBER%
-                        if %errorlevel% neq 0 exit /b %errorlevel%
-                        
-                        docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest
-                        docker push %IMAGE_NAME%:latest
-                        if %errorlevel% neq 0 exit /b %errorlevel%
-                        '''
-                    }
+                echo "🚀 Login ke Docker Hub dan push image..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat """
+                    echo Logging in to Docker Hub...
+                    docker logout
+                    docker login -u "%DOCKER_USER%" -p "%DOCKER_PASS%"
+                    docker push %DOCKER_IMAGE%
+                    """
                 }
             }
         }
@@ -50,7 +40,7 @@ pipeline {
 
     post {
         success {
-            bat 'echo ✅ Build dan Push Docker Image berhasil!'
+            bat 'echo ✅ Build dan push image berhasil!'
         }
         failure {
             bat 'echo ❌ Build gagal, periksa log untuk detail error.'
