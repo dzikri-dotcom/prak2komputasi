@@ -2,47 +2,61 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'dzikri2811'
-        IMAGE_NAME = 'simple-app'
+        IMAGE_NAME = 'dzikri2811/simple-app'
+        REGISTRY_CREDENTIALS = 'dockerhub-credentials'
     }
 
     stages {
         stage('Checkout') {
             steps {
                 echo '🔹 Mengambil source code dari GitHub...'
+                // Karena Jenkinsfile ada di dalam simple-app, checkout dari root repo tetap berlaku
                 checkout scm
+                // Pindah ke folder simple-app
+                dir('simple-app') {
+                    bat 'echo 📂 Berpindah ke folder simple-app...'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir('simple-app') {
+                    bat 'echo 🏗️  Build di Windows dimulai...'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo '🐳 Membangun Docker image...'
-                bat """
-                    docker build -f simple-app/Dockerfile -t %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER} simple-app
-                """
+                dir('simple-app') {
+                    echo '🐳 Membangun Docker image...'
+                    bat 'docker build -t %IMAGE_NAME%:%BUILD_NUMBER% .'
+                }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                echo '🚀 Login ke Docker Hub dan push image...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat """
+                dir('simple-app') {
+                    echo '🚀 Login ke Docker Hub dan push image...'
+                    withCredentials([usernamePassword(credentialsId: REGISTRY_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        bat '''
                         echo Logging in to Docker Hub...
                         docker logout
-                        docker login -u %DOCKER_USER% -p %DOCKER_PASS%
-                        if %errorlevel% neq 0 exit /b %errorlevel%
-
-                        echo Pushing image to Docker Hub...
-                        docker push %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER}
-                    """
+                        docker login -u %USER% -p %PASS%
+                        docker push %IMAGE_NAME%:%BUILD_NUMBER%
+                        docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest
+                        docker push %IMAGE_NAME%:latest
+                        '''
+                    }
                 }
             }
         }
     }
 
     post {
-        success {
+        always {
             bat 'echo ✅ Pipeline selesai dijalankan.'
         }
         failure {
