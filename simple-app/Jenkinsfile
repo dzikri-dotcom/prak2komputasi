@@ -3,10 +3,10 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "dzikri2811/simple-app:latest"
+        DOCKER_CREDENTIALS = "dockerhub-credentials"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 echo "🔹 Mengambil source code dari GitHub..."
@@ -17,22 +17,22 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo "🐳 Membangun Docker image..."
-                bat """
-                docker build -f simple-app/Dockerfile -t %DOCKER_IMAGE% simple-app
-                """
+                bat 'docker build -f simple-app/Dockerfile -t %DOCKER_IMAGE% simple-app'
             }
         }
 
         stage('Push Docker Image') {
             steps {
                 echo "🚀 Login ke Docker Hub dan push image..."
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat """
-                    echo Logging in to Docker Hub...
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat '''
                     docker logout
                     docker login -u "%DOCKER_USER%" -p "%DOCKER_PASS%"
+                    if %errorlevel% neq 0 exit /b %errorlevel%
+
                     docker push %DOCKER_IMAGE%
-                    """
+                    if %errorlevel% neq 0 exit /b %errorlevel%
+                    '''
                 }
             }
         }
@@ -40,7 +40,7 @@ pipeline {
 
     post {
         success {
-            bat 'echo ✅ Build dan push image berhasil!'
+            bat 'echo ✅ Build dan Push Docker Image berhasil!'
         }
         failure {
             bat 'echo ❌ Build gagal, periksa log untuk detail error.'
