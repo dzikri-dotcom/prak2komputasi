@@ -1,66 +1,53 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    // Nama image Docker yang akan dibangun dan di-push ke Docker Hub
-    IMAGE_NAME = 'yourdockerusername/simple-app'
-    // ID credential Docker Hub di Jenkins
-    REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-  }
-
-  stages {
-    stage('Checkout') {
-      steps {
-        echo '🔹 Mengambil source code dari GitHub...'
-        checkout scm
-      }
+    environment {
+        DOCKERHUB_USER = 'dzikri2811'
+        IMAGE_NAME = 'simple-app'
     }
 
-    stage('Build') {
-      steps {
-        bat 'echo "🏗️  Build di Windows dimulai..."'
-      }
-    }
-
-    stage('Build Docker Image') {
-      steps {
-        echo '🐳 Membangun Docker image dari folder simple-app...'
-        // Dockerfile berada di folder simple-app
-        bat 'docker build -f simple-app/Dockerfile -t %IMAGE_NAME%:%BUILD_NUMBER% simple-app'
-      }
-    }
-
-    stage('Push Docker Image') {
-      steps {
-        echo '🚀 Login ke Docker Hub dan push image...'
-        withCredentials([usernamePassword(
-          credentialsId: REGISTRY_CREDENTIALS,
-          usernameVariable: 'USER',
-          passwordVariable: 'PASS'
-        )]) {
-          // Login ke Docker Hub menggunakan username & token
-          bat 'docker login --username %USER% --password %PASS%'
-          
-          // Push image dengan tag build number
-          bat 'docker push %IMAGE_NAME%:%BUILD_NUMBER%'
-          
-          // Tambahkan tag latest dan push juga
-          bat 'docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest'
-          bat 'docker push %IMAGE_NAME%:latest'
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '🔹 Mengambil source code dari GitHub...'
+                checkout scm
+            }
         }
-      }
-    }
-  }
 
-  post {
-    always {
-      bat 'echo "✅ Pipeline selesai dijalankan."'
+        stage('Build') {
+            steps {
+                bat 'echo "🏗️  Build di Windows dimulai..."'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo '🐳 Membangun Docker image dari folder simple-app...'
+                bat """
+                    docker build -f simple-app/Dockerfile -t %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER} simple-app
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                echo '🚀 Login ke Docker Hub dan push image...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    bat """
+                        docker login -u %USER% -p %PASS%
+                        docker push %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
     }
-    success {
-      bat 'echo "🎉 Build dan Push Docker Image berhasil!"'
+
+    post {
+        success {
+            bat 'echo "✅ Pipeline selesai dijalankan."'
+        }
+        failure {
+            bat 'echo "❌ Build gagal, periksa log untuk detail error."'
+        }
     }
-    failure {
-      bat 'echo "❌ Build gagal, periksa log untuk detail error."'
-    }
-  }
 }
