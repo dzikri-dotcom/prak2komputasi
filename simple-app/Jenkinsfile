@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'dzikri2811'
+        DOCKERHUB_USER = 'Docker Hub username'
         IMAGE_NAME = 'simple-app'
     }
 
@@ -18,7 +18,7 @@ pipeline {
             steps {
                 echo '🐳 Membangun Docker image...'
                 bat """
-                    docker build -f simple-app/Dockerfile -t %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER} simple-app
+                    docker build -f simple-app/Dockerfile -t "%DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER}" simple-app
                 """
             }
         }
@@ -30,8 +30,8 @@ pipeline {
                     bat """
                         echo Logging in to Docker Hub...
                         docker logout
-                        docker login -u %USER% -p %PASS%
-                        docker push %DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER}
+                        docker login -u "%USER%" -p "%PASS%"
+                        docker push "%DOCKERHUB_USER%/%IMAGE_NAME%:${BUILD_NUMBER}"
                     """
                 }
             }
